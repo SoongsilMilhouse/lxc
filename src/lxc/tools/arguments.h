@@ -81,8 +81,12 @@ struct lxc_arguments {
 	int nowait;
 	int reboot;
 
-	/* for lxc-destroy */
+	/* for lxc-destroy and lxc-group */
 	int force;
+
+    /* for lxc-group */
+    char *groupname;
+    bool group_create_or_destroy;
 
 	/* close fds from parent? */
 	bool close_all_fds;

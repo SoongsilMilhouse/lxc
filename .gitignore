@@ -48,6 +48,7 @@ src/lxc/lxc-device
 src/lxc/lxc-execute
 src/lxc/lxc-freeze
 src/lxc/lxc.functions
+src/lxc/lxc-group
 src/lxc/lxc-info
 src/lxc/lxc-init
 src/lxc/lxc-ls

@@ -96,6 +96,7 @@ _have lxc-start && {
     complete -o default -F _lxc_generic_n lxc-device
     complete -o default -F _lxc_generic_n lxc-execute
     complete -o default -F _lxc_generic_n lxc-freeze
+    complete -o default -F _lxc_generic_n lxc-group
     complete -o default -F _lxc_generic_n lxc-info
     complete -o default -F _lxc_generic_n lxc-monitor
     complete -o default -F _lxc_generic_n lxc-snapshot
