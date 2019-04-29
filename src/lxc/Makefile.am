@@ -186,6 +186,7 @@ endif
 
 AM_CFLAGS = -DLXCROOTFSMOUNT=\"$(LXCROOTFSMOUNT)\" \
 	    -DLXCPATH=\"$(LXCPATH)\" \
+		-DLXCGROUPPATH=\"$(LXCGROUPPATH)\" \
 	    -DLXC_GLOBAL_CONF=\"$(LXC_GLOBAL_CONF)\" \
 	    -DLXCINITDIR=\"$(LXCINITDIR)\" \
 	    -DLIBEXECDIR=\"$(LIBEXECDIR)\" \
@@ -273,7 +274,7 @@ bin_PROGRAMS = lxc-attach \
 	       lxc-freeze \
 	       lxc-info \
 	       lxc-ls \
-           lxc-group \
+	       lxc-group \
 	       lxc-monitor \
 	       lxc-snapshot \
 	       lxc-start \
@@ -334,7 +335,7 @@ lxc_freeze_SOURCES = tools/lxc_freeze.c \
 lxc_info_SOURCES = tools/lxc_info.c \
 		   tools/arguments.c tools/arguments.h
 lxc_group_SOURCES = tools/lxc_group.c \
-           tools/arguments.c tools/arguments.h
+		    tools/arguments.c tools/arguments.h
 lxc_monitor_SOURCES = tools/lxc_monitor.c \
 		      macro.h \
 		      tools/arguments.c tools/arguments.h

@@ -36,8 +36,6 @@
 #include "log.h"
 #include "utils.h"
 
-#define GROUPPATH "/usr/local/var/lib/lxcgroup"
-
 lxc_log_define(lxc_group, lxc);
 
 /* Store container info. */
@@ -230,14 +228,16 @@ static bool create_group_dir(char *groupname)
     int ret;
     size_t len;
     char *s;
+    char *lxcgrouppath;
 
-    len = strlen(GROUPPATH) + strlen(groupname) + 2;
+    lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+    len = strlen(lxcgrouppath) + strlen(groupname) + 2;
     s = malloc(len);
 
     if (!s)
         return false;
 
-    ret = snprintf(s, len, "%s/%s", GROUPPATH, groupname);
+    ret = snprintf(s, len, "%s/%s", lxcgrouppath, groupname);
     if (ret < 0 || (size_t)ret >= len) {
         free(s);
         return false;
@@ -254,14 +254,16 @@ static int force_destroy_group_dir(const char* groupname)
     int ret = -1;
     size_t len;
     char *path = NULL;
+    char *lxcgrouppath;
 
-    len = strlen(groupname) + strlen(GROUPPATH) + 2;
+    lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+    len = strlen(groupname) + strlen(lxcgrouppath) + 2;
     path = malloc(len);
 
     if (!path)
         return false;
 
-    ret = snprintf(path, len, "%s/%s", GROUPPATH, groupname);
+    ret = snprintf(path, len, "%s/%s", lxcgrouppath, groupname);
     if (ret < 0 || (size_t)ret >= len) {
         free(path);
         return false;
@@ -290,14 +292,16 @@ static bool destroy_group_dir(char *groupname)
     int ret;
     size_t len;
     char *s;
+    char *lxcgrouppath;
 
-    len = strlen(GROUPPATH) + strlen(groupname) + 2;
+    lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+    len = strlen(lxcgrouppath) + strlen(groupname) + 2;
     s = malloc(len);
 
     if (!s)
         return false;
 
-    ret = snprintf(s, len, "%s/%s", GROUPPATH, groupname);
+    ret = snprintf(s, len, "%s/%s", lxcgrouppath, groupname);
     if (ret < 0 || (size_t)ret >= len) {
         free(s);
         return false;
@@ -314,6 +318,7 @@ static bool create_group_symlink(struct lxc_container *c, const char *groupname,
     int ret = -1;
     size_t len, len2;
     char *lxcpath;
+    char *lxcgrouppath;
     char *oldpath = NULL;
     char *sympath = NULL;
 
@@ -336,13 +341,14 @@ static bool create_group_symlink(struct lxc_container *c, const char *groupname,
         return false;
     }
 
-    len2 = strlen(groupname) + strlen(GROUPPATH) + strlen(containername) + 3;
+    lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+    len2 = strlen(groupname) + strlen(lxcgrouppath) + strlen(containername) + 3;
     sympath = malloc(len2);
 
     if (!sympath)
         return false;
 
-    ret = snprintf(sympath, len2, "%s/%s/%s", GROUPPATH, groupname, containername);
+    ret = snprintf(sympath, len2, "%s/%s/%s", lxcgrouppath, groupname, containername);
     if (ret < 0 || (size_t)ret >= len2) {
         free(oldpath);
         free(sympath);
@@ -364,6 +370,7 @@ static bool delete_group_symlink(struct lxc_container *c, const char *groupname,
 {
     int ret = -1;
     size_t len;
+    char *lxcgrouppath;
     char *sympath = NULL;
 
     /* 해당 컨테이너 없을 시 false 반환 */
@@ -372,12 +379,13 @@ static bool delete_group_symlink(struct lxc_container *c, const char *groupname,
         return false;
     }
 
-    len = strlen(groupname) + strlen(GROUPPATH) + strlen(containername) + 3;
+    lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+    len = strlen(groupname) + strlen(lxcgrouppath) + strlen(containername) + 3;
     sympath = malloc(len);
     if (!sympath)
         return false;
 
-    ret = snprintf(sympath, len, "%s/%s/%s", GROUPPATH, groupname, containername);
+    ret = snprintf(sympath, len, "%s/%s/%s", lxcgrouppath, groupname, containername);
     if (ret < 0 || (size_t)ret >= len) {
         free(sympath);
         return false;
@@ -387,6 +395,37 @@ static bool delete_group_symlink(struct lxc_container *c, const char *groupname,
     free(sympath);
 
     return ret == 0;
+}
+
+static void ls_print_names(struct ls *l, struct lengths *lht,
+		size_t size, size_t termwidth, bool list)
+{
+	/* If list is empty do nothing. */
+	if (size == 0)
+		return;
+
+	size_t i, len = 0;
+	struct ls *m = NULL;
+
+	for (i = 0, m = l; i < size; i++, m++) {
+		if (list) {
+			printf("%s\n", m->groupname ? m->groupname : "-");
+		} else {
+			printf("%-*s", lht->groupname_length, m->groupname ? m->groupname : "-");
+
+			len += lht->groupname_length;
+			if ((len + lht->groupname_length) >= termwidth) {
+				printf("\n");
+				len = 0;
+			} else {
+				printf(" ");
+				len++;
+			}
+		}
+	}
+
+	if (len > 0)
+		printf("\n");
 }
 
 int main(int argc, char *argv[])
@@ -458,6 +497,7 @@ int main(int argc, char *argv[])
     else if (strncmp(cmd, "add", strlen(cmd)) == 0)
     {
         groupname = my_args.argv[1];            // lxc-group -n c1 add group1(=groupname2)
+        printf("here\n");
         ret = create_group_symlink(c, groupname, my_args.name);
         if (ret != true) {
             ERROR("Failed to add %s to %s", my_args.name, groupname);
