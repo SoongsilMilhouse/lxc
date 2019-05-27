@@ -440,7 +440,7 @@ int main(int argc, char *argv[])
 	if (lxc_monitord_mainloop_add(&monitor)) {
 		ERROR("Failed to add mainloop handlers");
 		goto on_error;
-	}
+	};
 
 	NOTICE("lxc-monitord with pid %d is now monitoring lxcpath %s",
 	       lxc_raw_getpid(), monitor.lxcpath);

@@ -84,9 +84,10 @@ struct lxc_arguments {
 	/* for lxc-destroy and lxc-group */
 	int force;
 
-    /* for lxc-group */
-    char *groupname;
-    bool group_create_or_destroy;
+	/* for lxc-group */
+	char *groupname;
+	bool group_option; 
+	bool group_ls;
 
 	/* close fds from parent? */
 	bool close_all_fds;
@@ -159,6 +160,7 @@ struct lxc_arguments {
 
 #define LXC_COMMON_OPTIONS                                                     \
 	    { "name",        required_argument, 0, 'n'         },              \
+	    { "groupname",   required_argument, 0, 'g'         },              \
 	    { "help",        no_argument,       0, 'h'         },              \
 	    { "usage",       no_argument,       0, OPT_USAGE   },              \
 	    { "version",     no_argument,       0, OPT_VERSION },              \

@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
 
     /* create or destroy 할 때는 컨테이너 생성 안함 */ 
-    if (!my_args.group_create_or_destroy) {
+    if (!my_args.group_option) {
         c = lxc_container_new(my_args.name, my_args.lxcpath[0]);
 
         if (!c) {
@@ -497,7 +497,6 @@ int main(int argc, char *argv[])
     else if (strncmp(cmd, "add", strlen(cmd)) == 0)
     {
         groupname = my_args.argv[1];            // lxc-group -n c1 add group1(=groupname2)
-        printf("here\n");
         ret = create_group_symlink(c, groupname, my_args.name);
         if (ret != true) {
             ERROR("Failed to add %s to %s", my_args.name, groupname);

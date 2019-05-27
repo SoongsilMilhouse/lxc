@@ -149,7 +149,6 @@ int lxc_abstract_unix_connect(const char *path)
 		errno = saved_errno;
 		return -1;
 	}
-
 	return fd;
 }
 

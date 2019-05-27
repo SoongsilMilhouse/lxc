@@ -55,6 +55,14 @@
 #include "state.h"
 #include "utils.h"
 
+#ifndef HAVE_STRLCAT
+#include "include/strlcat.h"
+#endif
+
+#ifndef HAVE_STRLCPY
+#include "include/strlcpy.h"
+#endif
+
 #define LXC_MONITORD_PATH LIBEXECDIR "/lxc/lxc-monitord"
 
 static bool quit_monitord;
@@ -214,7 +222,7 @@ static int lxc_tool_monitord_spawn(const char *lxcpath)
 		_exit(EXIT_SUCCESS);
 	}
 
-	if (setsid() < 0) {
+	if (setsid() < 0) {;
 		SYSERROR("Failed to setsid()");
 		_exit(EXIT_FAILURE);
 	}
@@ -239,6 +247,100 @@ static int lxc_tool_monitord_spawn(const char *lxcpath)
 	_exit(EXIT_FAILURE);
 }
 
+static int get_len(char *groupname) {
+	DIR *dir;
+	struct dirent *direntp;
+	char *lxcgrouppath;
+	char *path;	
+	int len, len2 = 0;
+	int ret = -1;
+	int count = 0;
+
+	lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+	len = strlen(lxcgrouppath) + strlen(groupname) + 2;
+	path = malloc(len);
+
+	if (!path)
+		return false;
+
+	ret = snprintf(path, len, "%s/%s", lxcgrouppath, groupname);
+ 	if (ret < 0 || (size_t)ret >= len) {
+    free(path);
+    return false;
+  }
+
+	dir = opendir(path);
+	if (dir != NULL) {
+		while((direntp = readdir(dir)) != NULL) {
+			if (!strcmp(direntp->d_name, "."))
+				continue;
+
+			if (!strcmp(direntp->d_name, ".."))
+				continue;
+
+			len2 += strlen(direntp->d_name);
+			count++;
+		}
+		closedir(dir);
+	} else {
+		SYSERROR("Failed to open directory");
+		return -1;
+	}
+
+	// '|' 문자 길이 추가(lxc-monitor -n 'n1|n2')
+	if (count > 1) {
+		len2 += count - 1;
+	}
+
+	return len2;
+}
+
+static int set_regexp_with_container_name(char *groupname, char *container_list) {
+	DIR *dir;
+	struct dirent *direntp;
+	char res[128] = {0,};
+	char *lxcgrouppath;
+	char *path;
+	int len;
+	int ret = -1;
+
+	
+	lxcgrouppath = (char *)lxc_global_config_value("lxc.lxcgrouppath");
+	len = strlen(lxcgrouppath) + strlen(groupname) + 2;
+	path = malloc(len);
+
+	if (!path)
+		return false;
+
+	ret = snprintf(path, len, "%s/%s", lxcgrouppath, groupname);
+ 	if (ret < 0 || (size_t)ret >= len) {
+    free(path);
+    return false;
+  }
+
+	dir = opendir(path);
+	if (dir != NULL) {
+		while((direntp = readdir(dir)) != NULL) {
+			if (!strcmp(direntp->d_name, "."))
+				continue;
+
+			if (!strcmp(direntp->d_name, ".."))
+				continue;
+			strncat(res, direntp->d_name, strlen(direntp->d_name));
+			strncat(res, "|", 1);
+		}
+		closedir(dir);
+	} else {
+		SYSERROR("Failed to open directory");
+		return false;
+	}
+
+	res[strlen(res) - 1] = '\0';
+	strncpy(container_list, res, sizeof(container_list));
+
+	return true;
+}
+
 int main(int argc, char *argv[])
 {
 	char *regexp;
@@ -246,8 +348,10 @@ int main(int argc, char *argv[])
 	regex_t preg;
 	struct pollfd *fds;
 	nfds_t nfds;
-	int len, rc_main, rc_snp, i;
+	int len, len2, rc_main, rc_snp, i, ret;
 	struct lxc_log log;
+    char *container_list;
+
 
 	rc_main = EXIT_FAILURE;
 
@@ -266,9 +370,9 @@ int main(int argc, char *argv[])
 		if (lxc_log_init(&log))
 			exit(rc_main);
 	}
-
+	
 	if (quit_monitord) {
-		int ret = EXIT_SUCCESS;
+		ret = EXIT_SUCCESS;
 
 		for (i = 0; i < my_args.lxcpath_cnt; i++) {
 			int fd;
@@ -293,19 +397,42 @@ int main(int argc, char *argv[])
 		exit(ret);
 	}
 
-	len = strlen(my_args.name) + 3;
-	regexp = malloc(len + 3);
-	if (!regexp) {
-		ERROR("Failed to allocate memory");
-		exit(rc_main);
-	}
+	if (!my_args.group_option) {
+		len = strlen(my_args.name) + 3;
+		regexp = malloc(len + 3);
+		if (!regexp) {
+			ERROR("Failed to allocate memory");
+			exit(rc_main);
+		}
 
-	rc_snp = snprintf(regexp, len, "^%s$", my_args.name);
-	if (rc_snp < 0 || rc_snp >= len) {
-		ERROR("Name too long");
-		goto error;
-	}
+		rc_snp = snprintf(regexp, len, "^%s$", my_args.name);
+		if (rc_snp < 0 || rc_snp >= len) {
+			ERROR("Name too long");
+			goto error;
+		}
+	} else {
+		len = get_len(my_args.groupname) + 3;
+		container_list = malloc(len);
+		regexp = malloc(len + 3);
+		if (!regexp) {
+			ERROR("Failed to allocate memory");
+			exit(rc_main);
+		}
 
+		ret = set_regexp_with_container_name(my_args.groupname, container_list);
+		if (ret < 0) {
+			free(container_list);
+			ERROR("Failed to set regexp with container name");
+			goto error;
+		}
+
+		rc_snp = snprintf(regexp, len, "^%s$", container_list);
+		if (rc_snp < 0 || rc_snp >= len) {
+			ERROR("Name too long");
+			goto error;
+		}
+	}
+	
 	if (regcomp(&preg, regexp, REG_NOSUB|REG_EXTENDED)) {
 		ERROR("Failed to compile the regex '%s'", my_args.name);
 		goto error;
@@ -329,7 +456,6 @@ int main(int argc, char *argv[])
 			close_fds(fds, i);
 			goto cleanup;
 		}
-
 		fds[i].fd = fd;
 		fds[i].events = POLLIN;
 		fds[i].revents = 0;
@@ -340,7 +466,7 @@ int main(int argc, char *argv[])
 	for (;;) {
 		if (lxc_monitor_read_fdset(fds, nfds, &msg, -1) < 0)
 			goto close_and_clean;
-
+		
 		msg.name[sizeof(msg.name)-1] = '\0';
 		if (regexec(&preg, msg.name, 0, NULL, 0))
 			continue;

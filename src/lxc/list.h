@@ -164,4 +164,18 @@ static inline size_t lxc_list_len(struct lxc_list *list)
 	return i;
 }
 
+static inline struct lxc_list *lxc_list_find(void *elem, struct lxc_list *list) 
+{
+	struct lxc_list *iter = NULL;
+	struct lxc_list *ret = NULL;	
+
+	lxc_list_for_each(iter, list) {
+		if (elem == iter->elem) {
+			ret = iter;	
+		} 
+	}
+
+	return ret;
+}
+
 #endif /* __LXC_LIST_H */

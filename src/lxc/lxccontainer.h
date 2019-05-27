@@ -60,6 +60,12 @@ struct lxc_mount {
 	int version;
 };
 
+struct lxc_group {
+	char *groupname;
+	const char *lxcgrouppath;
+	struct lxc_list *grouplist;
+};
+
 /*!
  * An LXC container.
  *
@@ -74,6 +80,12 @@ struct lxc_container {
 	 * Name of container.
 	 */
 	char *name;
+
+	/*!
+	 * \private
+	 * Name of group.
+	 */
+	char *groupname;
 
 	/*!
 	 * \private

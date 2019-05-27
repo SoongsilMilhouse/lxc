@@ -193,13 +193,39 @@ static int lxc_arguments_lxcpath_add(struct lxc_arguments *args,
 	return 0;
 }
 
+static int lxc_arguments_lxcpath_append(struct lxc_arguments *args, 
+					 char *path, const char* lxcpath)
+{
+	int ret = -1;
+	size_t len;
+    char *temp;
+
+ 	len = strlen(args->groupname) + 
+		strlen(lxc_get_global_config_item("lxc.lxcgrouppath")) + 2;
+ 	temp = malloc(len);
+	if (!temp)
+ 	   return -1;
+
+    ret = snprintf(temp, len, "%s/%s", lxcpath, args->groupname);
+    if (ret < 0 || (size_t)ret >= len) {
+        free(temp);
+        return -1;
+    }
+
+	strncpy(path, temp, len);
+	path[len - 1] = '\0';
+	free(temp);	
+	
+	return 0;
+}
+
 extern int lxc_arguments_parse(struct lxc_arguments *args, int argc,
 			       char *const argv[])
 {
 	int ret = 0;
 	bool logfile = false;
 	char shortopts[256];
-
+	
 	ret = build_shortopts(args->options, shortopts, sizeof(shortopts));
 	if (ret < 0) {
 		lxc_error(args, "build_shortopts() failed : %s",
@@ -218,6 +244,10 @@ extern int lxc_arguments_parse(struct lxc_arguments *args, int argc,
 		switch (c) {
 		case 'n':
 			args->name = optarg;
+			break;
+		case 'g':
+			args->groupname = optarg;
+			args->group_option = true;
 			break;
 		case 'o':
 			args->log_file = optarg;
@@ -258,7 +288,6 @@ extern int lxc_arguments_parse(struct lxc_arguments *args, int argc,
 			}
 		}
 	}
-
 	/*
 	 * Reclaim the remaining command arguments
 	 */
@@ -267,12 +296,39 @@ extern int lxc_arguments_parse(struct lxc_arguments *args, int argc,
 
 	/* If no lxcpaths were given, use default */
 	if (!args->lxcpath_cnt) {
-		ret = lxc_arguments_lxcpath_add(
-		    args, lxc_get_global_config_item("lxc.lxcpath"));
-		if (ret < 0)
-			return ret;
-	}
+		//if (!args->group_option) {
+			ret = lxc_arguments_lxcpath_add(
+			    args, lxc_get_global_config_item("lxc.lxcpath"));
+			if (ret < 0)
+				return ret;
+		//}
+		/*
+		else {
+		    size_t len;
+		    char *path;
 
+ 		    len = strlen(args->groupname) + 
+				strlen(lxc_get_global_config_item("lxc.lxcgrouppath")) + 2;
+ 		    path = malloc(len);
+		    if (!path) {
+				ret = -1;
+				return ret;
+			}
+
+			ret = lxc_arguments_lxcpath_append(
+				args, path, lxc_get_global_config_item("lxc.lxcgrouppath"));
+			if (ret < 0) 
+				return ret;
+
+			printf("path : %s\n", path);
+
+			ret = lxc_arguments_lxcpath_add(
+				args, path);
+			if (ret < 0)
+				return ret;
+		}
+		*/
+	}
 	/* Check the command options */
 	if (!args->name && strncmp(args->progname, "lxc-autostart", strlen(args->progname)) != 0
 	                && strncmp(args->progname, "lxc-unshare", strlen(args->progname)) != 0) {
@@ -284,11 +340,10 @@ extern int lxc_arguments_parse(struct lxc_arguments *args, int argc,
 		}
 
 		if (!args->name) {
-			lxc_error(args, "No container name specified");
+			lxc_error(args, "No container name speified");
 			return -1;
 		}
 	}
-
 	if (args->checker)
 		ret = args->checker(args);
 
